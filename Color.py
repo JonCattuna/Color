@@ -18,6 +18,24 @@ class Color():
     group:int
 
 
+#reColor the left image in terms of representative Colors
+def reColorLeft(Lside, target, ary):
+    for y in range(0, len(Lside)):
+        for x in range(0, len(Lside[0])):
+            Lside[y][x] = target[ary[y][x].group]
+    return Lside
+
+#a method to turn an image to greyscale
+def toGray(image):
+    #reColor each pixel
+    new = np.new(image)
+    image = image.tolist()
+    for i in range(0,len(image)):
+        for j in range(0, len(image[i])):
+            image[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
+            new[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
+    return np.array(image), new
+
 #calculate the euclidean distance
 def Edistance(a , b):
     dist = np.linalg.norm(a-b)
@@ -31,6 +49,10 @@ def format(img):
             temp= Color(img[i][j][0],img[i][j][1], img[i][j][2], -1)
             ary[i][j] = temp
     return (ary)
+
+
+
+
 
 #the kmeans algorithm to find the target of our image data
 def kmeans(img):
@@ -85,24 +107,7 @@ def kmeans(img):
 
     return target, ary
 
-#reColor the left image in terms of representative Colors
-def reColorLeft(Lside, target, ary):
-    for y in range(0, len(Lside)):
-        for x in range(0, len(Lside[0])):
-            Lside[y][x] = target[ary[y][x].group]
-    return Lside
 
-#a method to turn an image to greyscale
-def toGray(image):
-    #reColor each pixel
-    new = np.new(image)
-    image = image.tolist()
-    for i in range(0,len(image)):
-        for j in range(0, len(image[i])):
-            new[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
-            image[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
-
-    return np.array(image), new
 
 #get all of the 3x3 patches in an image
 def get_patches(img):
