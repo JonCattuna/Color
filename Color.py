@@ -1,113 +1,108 @@
+import copy
 import time
 import numpy as np
 import random
-from pprint import pprint
-import cv2
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from dataclasses import dataclass
-import math
 from statistics import mode
-import time
 
-#used to quickly locate the group information of a given pixel
+#used to quickly locate the cluster information of a given pixel
 @dataclass
-class Color():
+class clu():
     r:int
     g:int
     b:int
-    group:int
+    cluster:int
 
-
-#reColor the left image in terms of representative Colors
-def reColorLeft(Lside, target, ary):
-    for y in range(0, len(Lside)):
-        for x in range(0, len(Lside[0])):
-            Lside[y][x] = target[ary[y][x].group]
-    return Lside
-
-#a method to turn an image to greyscale
-def toGray(image):
-    #reColor each pixel
-    new = np.new(image)
-    image = image.tolist()
-    for i in range(0,len(image)):
-        for j in range(0, len(image[i])):
-            image[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
-            new[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
-    return np.array(image), new
 
 #calculate the euclidean distance
-def Edistance(a , b):
+def euclidDist(a , b):
     dist = np.linalg.norm(a-b)
     return(dist)
 
-#turn the image format to [r,g,b,group] for later convenience
-def format(img):
-    ary = np.empty((len(img), len(img[0])), dtype=object)
-    for i in range (len(img)):
-        for j in range (len(img[0])):
-            temp= Color(img[i][j][0],img[i][j][1], img[i][j][2], -1)
-            ary[i][j] = temp
-    return (ary)
+#turn the image format to [r,g,b,cluster] for later convenience
+def cluArr(imgarr):
+    cluArray = np.empty((len(imgarr), len(imgarr[0])), dtype=object)
+    for i in range (len(imgarr)):
+        for j in range (len(imgarr[0])):
+            temp= clu(imgarr[i][j][0],imgarr[i][j][1], imgarr[i][j][2], -1)
+            cluArray[i][j] = temp
+    return (cluArray)
 
-
-
-
-
-#the kmeans algorithm to find the target of our image data
-def kmeans(img):
-    target=[]
+#the kmeans algorithm to find the centroids of our image data
+def kmeans(imgarr):
+    centroids=[]
     #generates 5 random points
     for i in range(5):
-        random_y = random.randint(0, len(img) - 1)
-        random_x = random.randint(0, len(img[0]) - 1)
-        target.append(list(img[random_y][random_x]))
+        random_y = random.randint(0, len(imgarr) - 1)
+        random_x = random.randint(0, len(imgarr[0]) - 1)
+        centroids.append(list(imgarr[random_y][random_x]))
 
     ctr=0
 
-    ary= format(img)
+    cluArray= cluArr(imgarr)
     while (ctr!=15):
-        sum=[[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]
+        sumarr=[[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]
         counter=[0,0,0,0,0]
         ctr=0
 
         # goes through every pixel
-        for y in range (len(img)):
-            for x in range (len(img[0])):
+        for y in range (len(imgarr)):
+            for x in range (len(imgarr[0])):
                 #print("x", x, "y", y)
                 shortestDist=3000
-                group=-1
+                cluster=-1
 
                 for j in range(5):
                     # finding the closest centroid
-                    newDist = Edistance(img[y][x], target[j])
+                    newDist = euclidDist(imgarr[y][x], centroids[j])
                     if newDist < shortestDist:
                         shortestDist=newDist
-                        group=j
+                        cluster=j
 
                 #tag the pixel
-                ary[y][x].group= group
+                cluArray[y][x].cluster= cluster
                 #add to the array of sums
-                sum[group][0] +=ary[y][x].r
-                sum[group][1] +=ary[y][x].g
-                sum[group][2] +=ary[y][x].b
-                counter[group]+= 1
+                sumarr[cluster][0] +=cluArray[y][x].r
+                sumarr[cluster][1] +=cluArray[y][x].g
+                sumarr[cluster][2] +=cluArray[y][x].b
+                counter[cluster]+= 1
         #finds the average
         for k in range(5):
             for l in range (3):
                 if(counter[k]!= 0):
-                    avg= int(sum[k][l]/counter[k])
+                    avg= int(sumarr[k][l]/counter[k])
                 else:
                     avg= 0
-                if abs(avg-target[k][l]) > 5:
-                    target[k][l] = avg
+                if abs(avg-centroids[k][l]) > 5:
+                    centroids[k][l] = avg
                 else:
                     ctr += 1
 
 
-    return target, ary
+    return centroids, cluArray
 
 
+#recolor the left image in terms of representative colors
+def recolorLeft(left, centroids, cluArray):
+    for y in range(0, len(left)):
+        for x in range(0, len(left[0])):
+            left[y][x] = centroids[cluArray[y][x].cluster]
+
+    return left
+
+#a method to turn an image to greyscale
+def toGrey(image):
+    #recolor each pixel
+    copy = np.copy(image)
+    image = image.tolist()
+    for i in range(0,len(image)):
+        for j in range(0, len(image[i])):
+            copy[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
+            image[i][j] = 0.21*image[i][j][0] + 0.72*image[i][j][1] + 0.07*image[i][j][2]
+
+    return np.array(image), copy
 
 #get all of the 3x3 patches in an image
 def get_patches(img):
@@ -120,22 +115,24 @@ def get_patches(img):
             #grayleft[i][j] starts on middle pixel
             #find the rest of the patch (adjacent pixels)
             patches.append((img[i-1:i+2,j-1:j+2],(i,j)))
+
     return patches
 
-#reColor the right side by finding 6 most similar in testing data
-def reColor_right(right,left):
-    target, ary = kmeans(left)
-    #FINAL OUTPUT FOR LEFT (representative Colors)
-    final_left = np.new(reColorLeft(left, target, ary))
 
-    grayleft = toGray(left)[0]
+#recolor the right side by finding 6 most similar in testing data
+def recolor_right(right,left):
+    centroids, cluArray = kmeans(left)
+    #FINAL OUTPUT FOR LEFT (representative colors)
+    final_left = np.copy(recolorLeft(left, centroids, cluArray))
 
-    grayright, new= toGray(right)
+    grayleft = toGrey(left)[0]
+
+    grayright, copy= toGrey(right)
 
     #plt.imshow(grayleft)
     #plt.show()
 
-    grayleftPatch = get_patches(grayleft)
+    grayleftPatch=get_patches(grayleft)
 
     tracker = 0
 
@@ -146,7 +143,7 @@ def reColor_right(right,left):
         for j in range(1,len(grayright[0])-1):
             patch=grayright[i-1:i+2,j-1:j+2]
             min1,min2,min3,min4,min5,min6=1000,1000,1000,1000,1000,1000
-            pixels=[[],[], [], [], [], []]
+            sixPatches=[[],[], [], [], [], []]
             #find six patches
 
             #take a sample from the total training data to compare with test data
@@ -154,69 +151,103 @@ def reColor_right(right,left):
             samples = random.sample(list(grayleftPatch), 1000)
 
             for k in samples:
-                dist=Edistance(k[0],grayright[i-1:i+2,j-1:j+2])
+                dist=euclidDist(k[0],grayright[i-1:i+2,j-1:j+2])
                 if dist<min1:
                     min1=dist
-                    pixels[1]=pixels[0]
-                    pixels[0]=k[1]
+                    sixPatches[1]=sixPatches[0]
+                    sixPatches[0]=k[1]
                     continue
                 if dist<min2:
                     min2=dist
-                    pixels[2]=pixels[1]
-                    pixels[1]=k[1]
+                    sixPatches[2]=sixPatches[1]
+                    sixPatches[1]=k[1]
                     continue
                 if dist<min3:
                     min3=dist
-                    pixels[3]=pixels[2]
-                    pixels[2]=k[1]
+                    sixPatches[3]=sixPatches[2]
+                    sixPatches[2]=k[1]
                     continue
                 if dist<min4:
                     min4=dist
-                    pixels[4]=pixels[3]
-                    pixels[3]=k[1]
+                    sixPatches[4]=sixPatches[3]
+                    sixPatches[3]=k[1]
                     continue
                 if dist<min5:
                     min5=dist
-                    pixels[5]=pixels[4]
-                    pixels[4]=k[1]
+                    sixPatches[5]=sixPatches[4]
+                    sixPatches[4]=k[1]
                     continue
                 if dist<min6:
                     min6=dist
-                    pixels[5]=k[1]
+                    sixPatches[5]=k[1]
                     continue
 
-                #get Color of 6 middel pixels
-            for l in range(0,len(pixels)):
-                x=pixels[l][1]
-                y=pixels[l][0]
+                #get color of 6 middel pixels
+            for l in range(0,len(sixPatches)):
+                x=sixPatches[l][1]
+                y=sixPatches[l][0]
 
-                #replace the patches/coordinates we got with the Colors they represent
-                pixels[l] = ary[y][x].group
+                #replace the patches/coordinates we got with the colors they represent
+                sixPatches[l] = cluArray[y][x].cluster
 
             try:
-                mostFrequent=mode(pixels)
-                new[i][j]=target[mostFrequent]
+                mostFrequent=mode(sixPatches)
+                copy[i][j]=centroids[mostFrequent]
             except:
-                x=random.randint(0,len(pixels)-1)
-                tie=pixels[x]
-                new[i][j]=target[tie]
+                x=random.randint(0,len(sixPatches)-1)
+                tie=sixPatches[x]
+                copy[i][j]=centroids[tie]
 
             tracker += 1
         print(tracker/(len(grayright)*len(grayright[0]))*100, "%")
 
-    plt.imshow(final_left)
+    """plt.imshow(final_left)
     plt.show()
 
-    plt.imshow(new)
-    plt.show()
-    return final_left, new
+    plt.imshow(copy)
+    plt.show()"""
+    return final_left, copy
+
 
 #combine two pictures into one
-def combinePic(final_left, new):
+def combinePic(final_left, right):
     new = []
     for i in range(0, len(final_left)):
-        new.append(list(final_left[i])+list(new[i]))
+        new.append(list(final_left[i])+list(right[i]))
 
     plt.imshow(new)
     plt.show()
     return new
+
+
+def get_left_half(img):
+    cropped_img = img[:,:img.shape[1]//2]
+    return cropped_img
+
+
+def get_right_half(img):
+    cropped_img = img[:,:img.shape[1]//2:]
+    return cropped_img
+
+
+if __name__ =='__main__':
+    inp = str(input())
+
+    img = mpimg.imread('trop2.png')
+
+    half = int(len(img[0])/2)
+    left = img[:,:half]
+    right = img[:,half:]
+
+    if inp == 's':
+        plt.imshow(img)
+        plt.show()
+    elif inp == 'k':
+        rightSide= np.copy(right)
+        leftSide= np.copy(left)
+        finalLeft, finalRight = recolor_right(rightSide,leftSide)
+
+        finalPic = combinePic(finalLeft, finalRight)
+
+        plt.imshow(finalPic)
+        plt.show()
